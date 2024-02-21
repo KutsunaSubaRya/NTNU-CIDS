@@ -7,6 +7,9 @@ import io
 import os
 import re
 from dotenv import load_dotenv
+import discord
+from discord.ext import commands, tasks
+import asyncio
 
 load_dotenv()
 
@@ -20,7 +23,28 @@ class user_of_course:
         self.url = []
 
 
-def make_api_request(jsid: str):
+async def send_notification(user_name, course_id, url):
+    channel = bot.get_channel(int(CHANNEL_ID))
+    await channel.send(
+        f'{user_name}。目前開課序號 {course_id} 有空位!!!\n 請盡快登入選課系統加選。\n 系統僅提醒乙次，如需再次提醒請重新加選。')
+    file_path = os.path.dirname(__file__) + '/course_list.json'
+    data = []
+    with open(file_path, 'r', encoding='utf-8') as f:
+        try:
+            data = json.load(f)
+        except json.JSONDecodeError:
+            data = []
+        determined: bool = False
+        for course in data:
+            if course['name'] == user_name:
+                for course_url in course['url']:
+                    if course_url == url:
+                        course['url'].remove(course_url)
+        with open(file_path, 'w', encoding='utf-8') as ff:
+            json.dump(data, ff, ensure_ascii=False, indent=4)
+
+
+async def make_api_request(jsid: str):
     # define users is the list of User_Of_Course
     users = []
     with open('course_list.json', 'r', encoding='utf-8') as f:
@@ -46,7 +70,6 @@ def make_api_request(jsid: str):
                 print("API request successful.")
                 data = response.text
                 # print(data)
-                import re
                 id_of_course = re.search(r"'開課序號',\s*value:\s*'(.+)'", data)
                 limit_value = re.search(r"'限修人數',\s*value:\s*'(\d+)'", data)
                 print("開課序號:", id_of_course.group(1))
@@ -64,6 +87,7 @@ def make_api_request(jsid: str):
                         # print light green color
                         print("\033[1;32;40m")
                         print(id_of_course.group(1), " 有名額 !!!!!!!!!!!!!")
+                        await send_notification(user.name, id_of_course.group(1), url)
                         print("\033[0;37;40m")
                     else:
                         print("沒名額")
@@ -72,18 +96,15 @@ def make_api_request(jsid: str):
                 print("API request failed.")
                 print("Status code:", response.status_code)
                 print("Response:", response.text)
-            time.sleep(0.5)
+            await asyncio.sleep(0.5)
 
 
-def time_count():
-    t = 5
-    for i in range(0, 5):
-        print("剩下", t, "分鐘重新發送請求")
-        t -= 1
-        time.sleep(60)
+async def say_after(delay, what):
+    await asyncio.sleep(delay)
+    print(what)
 
 
-if __name__ == "__main__":
+async def scrape_website():
     options = webdriver.ChromeOptions()
     options.add_argument('--ignore-certificate-errors')
     options.add_argument('--ignore-ssl-errors')
@@ -112,13 +133,112 @@ if __name__ == "__main__":
     result = re.search(r'ggghjug67fuhu\d+-btnEl', driver.page_source)
     driver.find_element('id', str(result.group())).click()
     time.sleep(3)
+    driver.find_element('id', 'button-1005-btnEl').click()
+    time.sleep(1)
     driver.find_element('id', 'button-1020-btnEl').click()
     time.sleep(3)
     driver.execute_script("countSecond=-1;")
     session = driver.get_cookie('JSESSIONID')['value']
 
     while True:
-        make_api_request(session)
-        time_count()
+        await make_api_request(session)
+        await say_after(60, "剩下 5 分鐘重新發送請求")
+        await say_after(60, "剩下 4 分鐘重新發送請求")
+        await say_after(60, "剩下 3 分鐘重新發送請求")
+        await say_after(60, "剩下 2 分鐘重新發送請求")
+        await say_after(60, "剩下 1 分鐘重新發送請求")
 
-    driver.quit()
+
+CHANNEL_ID = os.getenv('CHANNEL_ID')
+TOKEN = os.getenv('TOKEN')
+intents = discord.Intents.default()
+intents.message_content = True
+
+bot = commands.Bot(command_prefix='!', intents=intents)
+
+
+@bot.event
+async def on_ready():
+    print(f'{bot.user.name} has connected to Discord!')
+    channel = bot.get_channel(int(CHANNEL_ID))
+    await channel.send(
+        'NTNU-Course-Info-Bot is online!\n Use `!info` to get guidance. \n Use `!help` to get command list.')
+
+
+@bot.command()
+async def load(ctx, extension):
+    await bot.load_extension(f'cogs.{extension}')
+    await ctx.send(f'Loaded {extension} done!')
+
+
+@bot.command()
+async def unload(ctx, extension):
+    await bot.unload_extension(f'cogs.{extension}')
+    await ctx.send(f'Unloaded {extension} done!')
+
+
+@bot.command()
+async def reload(ctx, extension):
+    await bot.reload_extension(f'cogs.{extension}')
+    await ctx.send(f'Reloaded {extension} done!')
+
+
+@bot.command()
+async def start_scrapping(ctx):
+    await ctx.send("Starting scraping...")
+    await scrape_website()
+    await ctx.send("Scraping finished.")
+
+
+async def load_extensions():
+    for filename in os.listdir("./cogs"):
+        if filename.endswith(".py"):
+            await bot.load_extension(f"cogs.{filename[:-3]}")
+
+
+async def start():
+    async with bot:
+        await load_extensions()
+        await bot.start(TOKEN)
+
+
+if __name__ == "__main__":
+    asyncio.run(start())
+    # options = webdriver.ChromeOptions()
+    # options.add_argument('--ignore-certificate-errors')
+    # options.add_argument('--ignore-ssl-errors')
+    # options.add_argument('--headless')
+    # driver = webdriver.Chrome(options=options, seleniumwire_options={'verify_ssl': False})
+    # driver.get('https://cos3s.ntnu.edu.tw/AasEnrollStudent/LoginCheckCtrl?language=TW')
+    # # find RandImg in request url
+    # time.sleep(2)
+    # # driver.wait_for_request('RandImage', timeout=5)
+    #
+    # for request in driver.requests:
+    #     if request.response:
+    #         if 'RandImage' in request.url:
+    #             img = Image.open(io.BytesIO(request.response.body))
+    #             img.save('tmp.png')
+    #             break
+    # time.sleep(0.2)
+    # os.system('viu tmp.png')
+    # validation_code = input("Please input the validation code: ")
+    # driver.find_element('id', 'userid-inputEl').send_keys(os.getenv('STUDENT_ID'))
+    # time.sleep(1)
+    # driver.find_element('id', 'textfield-1017-inputEl').send_keys(os.getenv('PASSWORD'))
+    # time.sleep(1)
+    # driver.find_element('id', 'textfield-1019-inputEl').send_keys(validation_code)
+    # time.sleep(1)
+    # result = re.search(r'ggghjug67fuhu\d+-btnEl', driver.page_source)
+    # driver.find_element('id', str(result.group())).click()
+    # time.sleep(3)
+    # driver.find_element('id', 'button-1020-btnEl').click()
+    # time.sleep(3)
+    # driver.execute_script("countSecond=-1;")
+    # session = driver.get_cookie('JSESSIONID')['value']
+    #
+    # while True:
+    #     make_api_request(session)
+    #     time_count()
+    #
+    # driver.quit()
