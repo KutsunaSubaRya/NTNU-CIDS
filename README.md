@@ -1,4 +1,5 @@
 # NTNU-CIDS
+aka. National Taiwan Normal University - Course Information Discord Bot System
 
 ## Overview
 
