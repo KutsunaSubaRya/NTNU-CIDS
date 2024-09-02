@@ -10,7 +10,7 @@ class Add(commands.Cog):
 
     # 前綴指令
     @commands.command()
-    async def add(self, ctx: commands.Context, quest_parameter: str):
+    async def add(self, ctx: commands.Context, quest_parameter: int):
         data = []
         file_path = os.path.dirname(__file__) + '/../course_list.json'
         with open(file_path, 'r', encoding='utf-8') as f:
@@ -21,14 +21,17 @@ class Add(commands.Cog):
             determined: bool = False
             for course in data:
                 if course['name'] == ctx.author.mention:
-                    course['url'].append(
-                        "https://cos3s.ntnu.edu.tw/AasEnrollStudent/CourseQueryCtrl?" + quest_parameter)
+                    # course['url'].append(
+                    #     "https://cos3s.ntnu.edu.tw/AasEnrollStudent/CourseQueryCtrl?" + quest_parameter)
+                    course['url'].append(quest_parameter)
                     determined = True
                     break
 
             if not determined:
+                # data.append({'name': ctx.author.mention,
+                #              'url': ["https://cos3s.ntnu.edu.tw/AasEnrollStudent/CourseQueryCtrl?" + quest_parameter]})
                 data.append({'name': ctx.author.mention,
-                             'url': ["https://cos3s.ntnu.edu.tw/AasEnrollStudent/CourseQueryCtrl?" + quest_parameter]})
+                             'url': [quest_parameter]})
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
 

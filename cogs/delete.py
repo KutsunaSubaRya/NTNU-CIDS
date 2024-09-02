@@ -22,7 +22,7 @@ class Delete(commands.Cog):
             for course in data:
                 if course['name'] == ctx.author.mention:
                     for course_url in course['url']:
-                        if course_url == "https://cos3s.ntnu.edu.tw/AasEnrollStudent/CourseQueryCtrl?" + quest_parameter:
+                        if course_url == quest_parameter:
                             course['url'].remove(course_url)
                             determined = True
                             break
