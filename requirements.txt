@@ -1,8 +1,0 @@
-selenium==4.18.1
-requests==2.31.0
-selenium-wire==5.1.0
-opencv-python==4.9.0.80
-python-dotenv==1.0.1
-discord.py==2.3.2
-pillow==10.2.0
-blinker==1.7.0
