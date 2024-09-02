@@ -214,8 +214,10 @@ async def scrape_website():
     # 師大的課程資訊查訊是在 iframe 內，所以要先切換到 iframe 內
     iframe_content = driver.find_element('id', 'stfseldListDo')
     driver.switch_to.frame(iframe_content)
-    # 課程查詢 按鈕
-    driver.find_element('id', 'query').click()
+    # 課程查詢 按鈕 (非選課時段)
+    # driver.find_element('id', 'query').click()
+    # 加選 按鈕 (是選課時段)
+    driver.find_element('id', 'add-btnEl').click()
     time.sleep(1.7)
     while True:
         users = []
@@ -240,8 +242,9 @@ async def scrape_website():
                 # 先判斷 user.url 是否為純數字，若是代表還未轉換成 url (亦為 user 新增的課程代碼)
                 print("user url:", url)
                 print("user url type:", type(url))
-                # is url us not string
-                if not isinstance(url, str):
+                # is url not four digit string
+                print("is 4 digit:", bool(re.fullmatch(r'\d{4}', url)))
+                if bool(re.fullmatch(r'\d{4}', url)):
                     course_id = url
                     print("課程代碼數字為:", course_id)
                     time.sleep(1)
@@ -340,8 +343,7 @@ async def scrape_website():
                     print("Status code:", response.status_code)
                     print("Response:", response.text)
                 await asyncio.sleep(0.5)
-        await say_after(60, "剩下 2 分鐘重新發送請求")
-        await say_after(60, "剩下 1 分鐘重新發送請求")
+        await say_after(30, "剩下 1 分鐘重新發送請求")
 
 
 CHANNEL_ID = os.getenv('CHANNEL_ID')

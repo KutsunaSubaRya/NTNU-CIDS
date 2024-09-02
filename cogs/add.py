@@ -10,7 +10,7 @@ class Add(commands.Cog):
 
     # 前綴指令
     @commands.command()
-    async def add(self, ctx: commands.Context, quest_parameter: int):
+    async def add(self, ctx: commands.Context, quest_parameter: str):
         data = []
         file_path = os.path.dirname(__file__) + '/../course_list.json'
         with open(file_path, 'r', encoding='utf-8') as f:
